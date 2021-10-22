@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +27,12 @@ type Pkg struct {
 	Cfg           Cfg
 }
 
+func (p *Pkg) AsData() ([]byte, error) {
+	return json.Marshal(p)
+}
+func (p *Pkg) FromData(d []byte) error {
+	return json.Unmarshal(d, p)
+}
 func (p *Pkg) AllDeps() []*Pkg {
 	return append(p.Deps, p.Cfg.ExtraDeps...)
 }
@@ -148,7 +155,15 @@ func (p *Pkg) Unpack() error {
 			return err
 		}
 	}
-	return os.WriteFile(p.Path()+".url", []byte(p.Url), 0755)
+	err = os.WriteFile(p.Path()+"/revi.url", []byte(p.Url), 0755)
+	if err != nil {
+		return err
+	}
+	b, err := p.AsData()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p.Path()+"/revi.json", b, 0755)
 }
 func (p *Pkg) Run(env map[string]string) error {
 	var err error

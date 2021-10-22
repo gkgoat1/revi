@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"encoding/base64"
 	"io"
 	"net/http"
 	"strings"
@@ -16,6 +17,15 @@ type res struct {
 func fetchBase(url string, deps []func() (*pkg.Pkg, error), target string) (*pkg.Pkg, error) {
 	body, err := http.Get(url)
 	if err != nil {
+		if strings.HasPrefix(url, "data://") {
+			p := strings.TrimPrefix(url, "data://")
+			s, err := base64.RawStdEncoding.DecodeString(p)
+			if err != nil {
+				return nil, err
+			}
+			k := &pkg.Pkg{}
+			return k, k.FromData(s)
+		}
 		return nil, err
 	}
 	defer body.Body.Close()
