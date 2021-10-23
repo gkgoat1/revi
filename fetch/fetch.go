@@ -91,6 +91,9 @@ func Fetch(url string) (*pkg.Pkg, error) {
 		if strings.Contains(url, "https://github.com/bazelbuild/bazel/releases/download") && strings.Contains(url, "tar") {
 			s = append(s, "https://github.com/bazelbuild/bazel/releases/download/4.2.1/bazel-4.2.1-linux-x86_64", "https://www.python.org/ftp/python/3.10.0/Python-3.10.0.tgz")
 		}
+		if strings.Contains(url,"https://github.com/ostreedev/ostree/releases/download"){
+			s = append(s, "http://mirrors.kernel.org/gnu/make/make-4.3.tar.gz")
+		}
 	}
 	for _, f := range s {
 		ff := f

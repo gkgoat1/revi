@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"github.com/xi2/xz"
 )
 
 type Cfg struct {
@@ -46,9 +47,13 @@ func ExtractTarGz(gzipStream io.Reader, prefix string, target string) error {
 		_, err = io.Copy(f, gzipStream)
 		return err
 	}
+	var uncompressedStream io.Reader
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
+		uncompressedStream, err = xz.NewReader(gzipStream,0)
+		if err != nil{
 		return err
+		}
 	}
 
 	tarReader := tar.NewReader(uncompressedStream)
@@ -130,6 +135,12 @@ func (p *Pkg) Hash() string {
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
+func exists(path string) (bool, error) {
+    _, err := os.Stat(path)
+    if err == nil { return true, nil }
+    if os.IsNotExist(err) { return false, nil }
+    return false, err
+}
 func (p *Pkg) Unpack() error {
 	var err error
 	uc := make(chan error)
@@ -145,9 +156,39 @@ func (p *Pkg) Unpack() error {
 			return err
 		}
 	}
+	e,err := exists(p.Path())
+	if err != nil{
+		return err
+	}
+	if e{
+		return nil
+	}
 	err = ExtractTarGz(bytes.NewReader(p.SourceTarball), p.Path(), p.TargetFile)
 	if err != nil {
-		return err
+		td, err := os.MkdirTemp("/tmp/revi","*")
+		if err != nil{
+			return err
+		}
+		f, err := os.CreateTemp("/tmp/revi-f","*",0755)
+		if err != nil{
+			return err
+		}
+		defer f.Close()
+		_, err := io.Copy(f,bytes.NewReader(p.SourceTarball))
+		if err != nil{
+			return err
+		}
+		err = syscall.Mount(f.Path(),td,"squashfs",0,"ro,loop")
+		if err != nil{
+			return err
+		}
+		defer syscall.Umount(td)
+		cmd := exec.Command("sh","-c","tar -cvC $1 | tar -xvC $2","--",td,p.Path())
+		err = cmd.Run()
+		if err != nil{
+			return err
+		}
+		return nil
 	}
 	for k, p2 := range p.Cfg.Patch {
 		err = os.WriteFile(p.Path()+k, p2, 0755)
@@ -240,7 +281,7 @@ func (p *Pkg) Build() error {
 			cmd = exec.Command(dp + "/bin/make")
 			cmd.Dir = p.Path()
 			return cmd.Run()
-		} else if strings.Contains(p.Url, "python") {
+		} else if strings.Contains(p.Url, "python")  || strings.Contains(p.Url,"https://github.com/ostreedev/ostree/releases/download"){
 			dp := p.DepFromUrl("http://mirrors.kernel.org/gnu/make/make-4.3.tar.gz").Path()
 			cmd := exec.Command("bwrap", append([]string{"--ro-bind", "/", "/", "--bind", p.Path(), p.Path(), "sh", "-c", "p=\"$1\";shift 1;cd \"$p\";exec ./configure \"$@\"", "--", p.Path(), "--prefix=" + p.Path()})...)
 			cmd.Env = append(cmd.Env, "CC="+p.DepFromUrl("https://mirrorservice.org/sites/sourceware.org/pub/gcc/releases/gcc-11.2.0/gcc-11.2.0.tar.gz").Path()+"/bin/gcc",
