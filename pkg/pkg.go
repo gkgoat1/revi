@@ -46,6 +46,7 @@ func (s *SlConfig) SlExec() func(thread *starlark.Thread, b *starlark.Builtin, a
 			err = s.Package.DepFromUrl(s2).Run(*m)
 			(*m)["TARGET"] = s.Package.DepFromUrl(s2).Path()
 		})
+		cmd2.Dir = s.Package.DepFromUrl(s2).Path()
 		if err != nil{
 			return nil, err
 		}
