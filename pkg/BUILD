@@ -1,2 +1,2 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
-go_library(name = "pkg", srcs = glob(["*.go"]), importpath="re.vi/pkg",visibility = ["//visibility:public"], deps = ["@com_github_xi2_xz//:xz"])
+go_library(name = "pkg", srcs = glob(["*.go"]), importpath="re.vi/pkg",visibility = ["//visibility:public"], deps = ["@com_github_xi2_xz//:xz","@net_starlark_go//starlark"])
